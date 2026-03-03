@@ -1,10 +1,11 @@
-#git clone https://github.com/Majdawad88/red_and_blue_detection.git
+# Clone the red and blue detection repository from GitHub
+# !git clone https://github.com/Majdawad88/red_and_blue_detection.git
 
-import cv2
-import numpy as np
-import time
-import sys
-from picamera2 import Picamera2
+import cv2 # Import OpenCV library for image processing
+import numpy as np # Import NumPy for numerical and array operations
+import time # Import time for handling delays and sleep
+import sys # Import sys for system-specific parameters and functions
+from picamera2 import Picamera2 # Import the Picamera2 library to control the Raspberry Pi camera
 
 # --- Configuration ---
 # Define the lower boundary for the first range of Red in HSV (H: 0-10)
@@ -47,100 +48,101 @@ def mouse_callback(event, x, y, flags, param):
             mode_clicked = True # Set the flag to switch color modes
 
 # --- Window Setup ---
-win_name = "Color Tracker"
-cv2.namedWindow(win_name)
-cv2.setMouseCallback(win_name, mouse_callback)
+win_name = "Color Tracker" # Define the name of the display window
+cv2.namedWindow(win_name) # Create the named window for output
+cv2.setMouseCallback(win_name, mouse_callback) # Link the mouse callback function to this window
 
 # --- Camera Setup ---
-picam2 = Picamera2()
-picam2.configure("preview")
-picam2.start()
+picam2 = Picamera2() # Initialize the Picamera2 instance
+picam2.configure("preview") # Set the camera configuration for a live preview mode
+picam2.start() # Start the camera hardware stream
 
 try:
-    while True:
-            # Capture the raw image data from the camera sensor
-            frame_rgb = picam2.capture_array()
-            # Convert the raw RGB frame to BGR format for OpenCV compatibility
-            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-            # Flip the image vertically to correct the camera orientation
-            frame_bgr = cv2.flip(frame_bgr, 0)
-    
-            # Apply a Gaussian blur to smooth the image and reduce high-frequency noise
-            blurred = cv2.GaussianBlur(frame_bgr, (11, 11), 0)
-            # Convert the blurred BGR image to the HSV color space for easier color filtering
-            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-    
-            # 1. Choose Mask
-            if mode == "RED":
-                # Create a mask for the lower red hue range
-                m1 = cv2.inRange(hsv, lower_red1, upper_red1)
-                # Create a mask for the upper red hue range
-                m2 = cv2.inRange(hsv, lower_red2, upper_red2)
-                # Combine both red masks into a single binary image
-                mask = cv2.bitwise_or(m1, m2)
-                # Set the UI text color theme to Red (BGR: 0, 0, 255)
-                color_theme = (0, 0, 255)
-            else:
-                # Create a mask for the blue hue range
-                mask = cv2.inRange(hsv, lower_blue, upper_blue)
-                # Set the UI text color theme to Blue (BGR: 255, 0, 0)
-                color_theme = (255, 0, 0)
-    
-            # --- NEW: Contour Detection & Rectangle ---
-            # Detect the boundaries of the white shapes in the binary mask
-            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
-            if contours:
-                # Identify the single largest detected shape based on its area
-                largest_contour = max(contours, key=cv2.contourArea)
-    
-                # Process the shape only if it is large enough to be a valid target
-                if cv2.contourArea(largest_contour) > 500:
-                    # Get the coordinates and size for a bounding box around the shape
-                    x, y, w, h = cv2.boundingRect(largest_contour)
-                    # Draw a green rectangle on the live frame around the object
-                    cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 3)
-                    # Display the name of the current target mode above the box
-                    cv2.putText(frame_bgr, f"Target {mode}", (x, y - 10),
-                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    while True: # Begin the main processing loop
+        # Capture a live frame from the camera as an RGB array
+        frame_rgb = picam2.capture_array()
+        # Convert frame from RGB to BGR for OpenCV compatibility
+        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+        # Flip the frame vertically to fix camera orientation
+        frame_bgr = cv2.flip(frame_bgr, 0)
+
+        # Pre-process for better detection
+        # Apply Gaussian blur to smooth the image and reduce high-frequency noise
+        blurred = cv2.GaussianBlur(frame_bgr, (11, 11), 0)
+        # Convert the blurred BGR image to HSV color space for easier filtering
+        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+
+        # 1. Choose Mask
+        if mode == "RED": # Logic for Red detection
+            # Filter HSV for the first red range
+            m1 = cv2.inRange(hsv, lower_red1, upper_red1)
+            # Filter HSV for the second red range
+            m2 = cv2.inRange(hsv, lower_red2, upper_red2)
+            # Combine both red masks into one binary image
+            mask = cv2.bitwise_or(m1, m2)
+            # Set UI color theme to Red (BGR format)
+            color_theme = (0, 0, 255)
+        else: # Logic for Blue detection
+            # Filter HSV for the blue range
+            mask = cv2.inRange(hsv, lower_blue, upper_blue)
+            # Set UI color theme to Blue (BGR format)
+            color_theme = (255, 0, 0)
+
+        # --- NEW: Contour Detection & Rectangle ---
+        # Find all white blobs (foreground) in the binary mask
+        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        if contours: # Check if any blobs were found
+            # Identify the single largest detected shape based on its area
+            largest_contour = max(contours, key=cv2.contourArea)
+
+            # Process the shape only if it is large enough to be a valid target (ignores noise)
+            if cv2.contourArea(largest_contour) > 500:
+                # Get the coordinates (x,y) and size (w,h) for a bounding box
+                x, y, w, h = cv2.boundingRect(largest_contour)
+                # Draw a green rectangle on the live BGR frame around the object
+                cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 3)
+                # Display the name of the current target mode above the box
+                cv2.putText(frame_bgr, f"Target {mode}", (x, y - 10),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # 2. Draw UI
-        # Draw the red background box for the QUIT button
+        # Draw the red background rectangle for the QUIT button
         cv2.rectangle(frame_bgr, (10, 10), (110, 50), (0, 0, 200), -1)
-        # Overlay the "QUIT" text on the button
+        # Overlay the "QUIT" text onto the red button
         cv2.putText(frame_bgr, "QUIT", (25, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
 
-        # Draw the green background box for the MODE button
+        # Draw the green background rectangle for the MODE button
         cv2.rectangle(frame_bgr, (130, 10), (260, 50), (0, 200, 0), -1)
-        # Overlay the "MODE" text on the button
+        # Overlay the "MODE" text onto the green button
         cv2.putText(frame_bgr, "MODE", (155, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255,255,255), 2)
-        # Display the current active color mode status on the screen
+        # Display the current active color mode status below the buttons
         cv2.putText(frame_bgr, f"CURRENT: {mode}", (10, 90), cv2.FONT_HERSHEY_SIMPLEX, 1, color_theme, 2)
 
         # 3. Handle Logic for Switching
-        if mode_clicked:
+        if mode_clicked: # If the MODE button flag was set by mouse click
             # Toggle the mode variable between "RED" and "BLUE"
             mode = "BLUE" if mode == "RED" else "RED"
             # Reset the click flag to wait for the next interaction
             mode_clicked = False
 
         # 4. Prepare Display
-        # Resize the live tracking frame for the side-by-side view
+        # Resize the live tracking frame for the half-screen view
         left_img = cv2.resize(frame_bgr, (HALF_W, HALF_H))
-        # Convert the 1-channel mask to 3-channels and resize it for display
+        # Convert the 1-channel mask to 3-channels so it can be combined with BGR images
         right_img = cv2.resize(cv2.cvtColor(mask, cv2.COLOR_GRAY2BGR), (HALF_W, HALF_H))
-        # Join the live feed and the mask horizontally into one window
+        # Join the live feed and the mask horizontally into one large frame
         combined = np.hstack((left_img, right_img))
 
-        # Show the final combined output in the created window
+        # Show the final combined image in the tracking window
         cv2.imshow(win_name, combined)
 
-        # Exit the loop if 'q' is pressed or the QUIT button is clicked
+        # Check if the 'q' key is pressed or the QUIT flag is True to exit
         if (cv2.waitKey(1) & 0xFF == ord('q')) or quit_clicked:
             break
 
 finally:
-    # Safely turn off the camera hardware
+    # Safely power down the camera hardware
     picam2.stop()
-    # Close all OpenCV display windows to clean up system resources
+    # Close all OpenCV GUI windows to free system resources
     cv2.destroyAllWindows()
