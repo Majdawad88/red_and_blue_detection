@@ -57,52 +57,52 @@ picam2.configure("preview")
 picam2.start()
 
 try:
-while True:
-        # Capture the raw image data from the camera sensor
-        frame_rgb = picam2.capture_array()
-        # Convert the raw RGB frame to BGR format for OpenCV compatibility
-        frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
-        # Flip the image vertically to correct the camera orientation
-        frame_bgr = cv2.flip(frame_bgr, 0)
-
-        # Apply a Gaussian blur to smooth the image and reduce high-frequency noise
-        blurred = cv2.GaussianBlur(frame_bgr, (11, 11), 0)
-        # Convert the blurred BGR image to the HSV color space for easier color filtering
-        hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
-
-        # 1. Choose Mask
-        if mode == "RED":
-            # Create a mask for the lower red hue range
-            m1 = cv2.inRange(hsv, lower_red1, upper_red1)
-            # Create a mask for the upper red hue range
-            m2 = cv2.inRange(hsv, lower_red2, upper_red2)
-            # Combine both red masks into a single binary image
-            mask = cv2.bitwise_or(m1, m2)
-            # Set the UI text color theme to Red (BGR: 0, 0, 255)
-            color_theme = (0, 0, 255)
-        else:
-            # Create a mask for the blue hue range
-            mask = cv2.inRange(hsv, lower_blue, upper_blue)
-            # Set the UI text color theme to Blue (BGR: 255, 0, 0)
-            color_theme = (255, 0, 0)
-
-        # --- NEW: Contour Detection & Rectangle ---
-        # Detect the boundaries of the white shapes in the binary mask
-        contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-
-        if contours:
-            # Identify the single largest detected shape based on its area
-            largest_contour = max(contours, key=cv2.contourArea)
-
-            # Process the shape only if it is large enough to be a valid target
-            if cv2.contourArea(largest_contour) > 500:
-                # Get the coordinates and size for a bounding box around the shape
-                x, y, w, h = cv2.boundingRect(largest_contour)
-                # Draw a green rectangle on the live frame around the object
-                cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 3)
-                # Display the name of the current target mode above the box
-                cv2.putText(frame_bgr, f"Target {mode}", (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
+    while True:
+            # Capture the raw image data from the camera sensor
+            frame_rgb = picam2.capture_array()
+            # Convert the raw RGB frame to BGR format for OpenCV compatibility
+            frame_bgr = cv2.cvtColor(frame_rgb, cv2.COLOR_RGB2BGR)
+            # Flip the image vertically to correct the camera orientation
+            frame_bgr = cv2.flip(frame_bgr, 0)
+    
+            # Apply a Gaussian blur to smooth the image and reduce high-frequency noise
+            blurred = cv2.GaussianBlur(frame_bgr, (11, 11), 0)
+            # Convert the blurred BGR image to the HSV color space for easier color filtering
+            hsv = cv2.cvtColor(blurred, cv2.COLOR_BGR2HSV)
+    
+            # 1. Choose Mask
+            if mode == "RED":
+                # Create a mask for the lower red hue range
+                m1 = cv2.inRange(hsv, lower_red1, upper_red1)
+                # Create a mask for the upper red hue range
+                m2 = cv2.inRange(hsv, lower_red2, upper_red2)
+                # Combine both red masks into a single binary image
+                mask = cv2.bitwise_or(m1, m2)
+                # Set the UI text color theme to Red (BGR: 0, 0, 255)
+                color_theme = (0, 0, 255)
+            else:
+                # Create a mask for the blue hue range
+                mask = cv2.inRange(hsv, lower_blue, upper_blue)
+                # Set the UI text color theme to Blue (BGR: 255, 0, 0)
+                color_theme = (255, 0, 0)
+    
+            # --- NEW: Contour Detection & Rectangle ---
+            # Detect the boundaries of the white shapes in the binary mask
+            contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+            if contours:
+                # Identify the single largest detected shape based on its area
+                largest_contour = max(contours, key=cv2.contourArea)
+    
+                # Process the shape only if it is large enough to be a valid target
+                if cv2.contourArea(largest_contour) > 500:
+                    # Get the coordinates and size for a bounding box around the shape
+                    x, y, w, h = cv2.boundingRect(largest_contour)
+                    # Draw a green rectangle on the live frame around the object
+                    cv2.rectangle(frame_bgr, (x, y), (x + w, y + h), (0, 255, 0), 3)
+                    # Display the name of the current target mode above the box
+                    cv2.putText(frame_bgr, f"Target {mode}", (x, y - 10),
+                                cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 0), 2)
 
         # 2. Draw UI
         # Draw the red background box for the QUIT button
