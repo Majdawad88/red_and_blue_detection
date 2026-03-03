@@ -1,4 +1,4 @@
-#git clone 
+#git clone https://github.com/Majdawad88/red_and_blue_detection.git
 
 import cv2
 import numpy as np
